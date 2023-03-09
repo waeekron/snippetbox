@@ -1,23 +1,45 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
+	"os"
 )
+
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
 
 func main() {
 
-	// create servemux
-	mux := http.NewServeMux()
+	// read cli flag which defines the port number
+	addr := flag.String("addr", ":4000", "HTTP network address")
 
-	// add supported URL's and their handlers
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/snippet/view", snippetView)
-	mux.HandleFunc("snippet/create", snippetCreate)
+	// parse cli flags
+	flag.Parse()
 
-	// start the server on localhost:4000
-	log.Print("Server starting on :4000")
-	err := http.ListenAndServe(":4000", mux)
-	log.Fatal(err)
+	// infologger which logs to standard out
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 
+	// errorLoger to log errors to standard error out
+	errLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// initialize a new application struct instance, containing the deps
+	app := &application{
+		errorLog: errLog,
+		infoLog:  infoLog,
+	}
+
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errLog,
+		Handler:  app.routes(),
+	}
+	// start the server on localhost:4000/addr
+	infoLog.Printf("Starting the server on %s", *addr)
+	// call the ListenAndServe() on our http.Server struct:
+	err := srv.ListenAndServe()
+	errLog.Fatal(err)
 }
